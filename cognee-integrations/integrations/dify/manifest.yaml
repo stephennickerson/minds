@@ -1,0 +1,37 @@
+version: 0.0.2
+type: plugin
+author: topoteretes
+name: cognee
+label:
+  en_US: cognee
+  ja_JP: cognee
+  zh_Hans: cognee
+  pt_BR: cognee
+description:
+  en_US: Knowledge engine to build personalized and dynamic AI memory for agents.
+  ja_JP: AI エージェントのための個性化された動的なAIメモリを構築するための知識エンジン。
+  zh_Hans: 个性化和动态AI记忆的构建知识引擎
+  pt_BR: Engenheiro de conhecimento para construir memória personalizada e dinâmica para agentes de IA.
+icon: icon.svg
+icon_dark: icon-dark.svg
+resource:
+  memory: 268435456
+  permission:
+    tool:
+      enabled: true
+plugins:
+  tools:
+    - provider/cognee.yaml
+meta:
+  version: 0.0.2
+  arch:
+    - amd64
+    - arm64
+  runner:
+    language: python
+    version: "3.12"
+    entrypoint: main
+  minimum_dify_version: null
+created_at: 2026-03-06T16:42:16.090134+01:00
+privacy: PRIVACY.md
+verified: false

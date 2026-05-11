@@ -1,0 +1,17 @@
+[package]
+name = "cognee-rust-mcp"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "cognee-mcp-rs"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+mime_guess = "2.0"
+reqwest = { version = "0.12", features = ["blocking", "json", "multipart"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"

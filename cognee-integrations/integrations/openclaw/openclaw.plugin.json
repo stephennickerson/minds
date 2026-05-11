@@ -1,0 +1,287 @@
+{
+  "id": "cognee-openclaw",
+  "name": "Memory (Cognee)",
+  "kind": "memory",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "mode": {
+        "type": "string",
+        "enum": [
+          "local",
+          "cloud"
+        ],
+        "description": "\"local\" for self-hosted Cognee, \"cloud\" for Cognee Cloud (default: local). Also settable via COGNEE_MODE env var. Cloud mode supports: add, search, cognify, delete. Update (modifying existing data) is not yet supported — use the Cognee Cloud platform or API directly."
+      },
+      "baseUrl": {
+        "type": "string",
+        "description": "Cognee API base URL (default: http://localhost:8000). Also settable via COGNEE_BASE_URL env var."
+      },
+      "apiKey": {
+        "type": "string",
+        "description": "Cognee API key (or use ${COGNEE_API_KEY})"
+      },
+      "username": {
+        "type": "string",
+        "description": "Cognee login username (default: default_user@example.com)"
+      },
+      "password": {
+        "type": "string",
+        "description": "Cognee login password (default: default_password)"
+      },
+      "datasetName": {
+        "type": "string",
+        "description": "Cognee dataset name for single-scope mode (default: openclaw). Ignored when multi-scope is enabled."
+      },
+      "companyDataset": {
+        "type": "string",
+        "description": "Dataset name for company-wide shared memory. Setting this enables multi-scope mode."
+      },
+      "userDatasetPrefix": {
+        "type": "string",
+        "description": "Prefix for user-scoped datasets (becomes '{prefix}-{userId}'). Setting this enables multi-scope mode."
+      },
+      "agentDatasetPrefix": {
+        "type": "string",
+        "description": "Prefix for agent-scoped datasets (becomes '{prefix}-{agentId}'). Setting this enables multi-scope mode."
+      },
+      "userId": {
+        "type": "string",
+        "description": "User identifier for user-scoped memory (or set OPENCLAW_USER_ID env var)"
+      },
+      "agentId": {
+        "type": "string",
+        "description": "Agent identifier for agent-scoped memory (or set OPENCLAW_AGENT_ID env var, default: 'default')"
+      },
+      "recallScopes": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "company",
+            "user",
+            "agent"
+          ]
+        },
+        "description": "Memory scopes to search during recall, in priority order (default: ['agent', 'user', 'company'])"
+      },
+      "defaultWriteScope": {
+        "type": "string",
+        "enum": [
+          "company",
+          "user",
+          "agent"
+        ],
+        "description": "Default scope for files that don't match any scopeRouting pattern (default: 'agent')"
+      },
+      "scopeRouting": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "pattern": {
+              "type": "string",
+              "description": "Glob pattern to match file paths (e.g. 'memory/company/**')"
+            },
+            "scope": {
+              "type": "string",
+              "enum": [
+                "company",
+                "user",
+                "agent"
+              ]
+            }
+          },
+          "required": [
+            "pattern",
+            "scope"
+          ]
+        },
+        "description": "Rules to route memory files to scopes based on path patterns. First match wins."
+      },
+      "enableSessions": {
+        "type": "boolean",
+        "description": "Enable session-based conversation tracking for multi-turn recall (default: true)"
+      },
+      "persistSessionsAfterEnd": {
+        "type": "boolean",
+        "description": "Persist session Q&A pairs into the knowledge graph after agent ends (default: true)"
+      },
+      "searchType": {
+        "type": "string",
+        "enum": [
+          "GRAPH_COMPLETION",
+          "GRAPH_COMPLETION_COT",
+          "GRAPH_COMPLETION_CONTEXT_EXTENSION",
+          "GRAPH_SUMMARY_COMPLETION",
+          "RAG_COMPLETION",
+          "TRIPLET_COMPLETION",
+          "CHUNKS",
+          "CHUNKS_LEXICAL",
+          "SUMMARIES",
+          "CYPHER",
+          "NATURAL_LANGUAGE",
+          "TEMPORAL",
+          "CODING_RULES",
+          "FEELING_LUCKY"
+        ],
+        "description": "Cognee search mode (default: FEELING_LUCKY — auto-selects best strategy per query)"
+      },
+      "deleteMode": {
+        "type": "string",
+        "enum": [
+          "soft",
+          "hard"
+        ],
+        "description": "Cognee delete mode: 'soft' removes raw data only, 'hard' also removes degree-one graph nodes (default: soft)"
+      },
+      "maxResults": {
+        "type": "number",
+        "description": "Max recall results to inject per scope (default: 6)"
+      },
+      "minScore": {
+        "type": "number",
+        "description": "Minimum score to include in recall (default: 0)"
+      },
+      "maxTokens": {
+        "type": "number",
+        "description": "Token cap for recall per scope (default: 512)"
+      },
+      "recallInjectionPosition": {
+        "type": "string",
+        "enum": ["prependSystemContext", "appendSystemContext", "prependContext"],
+        "description": "Where recalled memories are injected: prepend to system prompt, append to system prompt, or prepend to prompt context (default: prependSystemContext)"
+      },
+      "autoRecall": {
+        "type": "boolean",
+        "description": "Inject memories before each agent run (default: true)"
+      },
+      "autoIndex": {
+        "type": "boolean",
+        "description": "Auto-sync memory files to Cognee on plugin startup (default: true)"
+      },
+      "autoCognify": {
+        "type": "boolean",
+        "description": "Run cognify after new memories are added (default: true)"
+      },
+      "autoMemify": {
+        "type": "boolean",
+        "description": "Run memify (graph enrichment) after cognify completes (default: false)"
+      },
+      "requestTimeoutMs": {
+        "type": "number",
+        "description": "HTTP timeout in milliseconds for Cognee requests (default: 60000)"
+      },
+      "ingestionTimeoutMs": {
+        "type": "number",
+        "description": "HTTP timeout in milliseconds for add/update (ingestion) requests (default: 300000 = 5 min)"
+      },
+      "searchPrompt": {
+        "type": "string",
+        "description": "System prompt sent to Cognee to guide search query processing (default: '')"
+      }
+    }
+  },
+  "uiHints": {
+    "baseUrl": {
+      "label": "Base URL",
+      "placeholder": "http://localhost:8000"
+    },
+    "apiKey": {
+      "label": "API Key",
+      "sensitive": true,
+      "placeholder": "${COGNEE_API_KEY}"
+    },
+    "username": {
+      "label": "Username",
+      "placeholder": "default_user@example.com"
+    },
+    "password": {
+      "label": "Password",
+      "sensitive": true,
+      "placeholder": "default_password"
+    },
+    "datasetName": {
+      "label": "Dataset Name (single-scope)",
+      "placeholder": "openclaw"
+    },
+    "companyDataset": {
+      "label": "Company Dataset",
+      "placeholder": "my-company"
+    },
+    "userDatasetPrefix": {
+      "label": "User Dataset Prefix",
+      "placeholder": "my-project-user"
+    },
+    "agentDatasetPrefix": {
+      "label": "Agent Dataset Prefix",
+      "placeholder": "my-project-agent"
+    },
+    "userId": {
+      "label": "User ID",
+      "placeholder": "${OPENCLAW_USER_ID}"
+    },
+    "agentId": {
+      "label": "Agent ID",
+      "placeholder": "default"
+    },
+    "recallScopes": {
+      "label": "Recall Scopes"
+    },
+    "defaultWriteScope": {
+      "label": "Default Write Scope",
+      "placeholder": "agent"
+    },
+    "enableSessions": {
+      "label": "Enable Sessions"
+    },
+    "persistSessionsAfterEnd": {
+      "label": "Persist Sessions"
+    },
+    "searchType": {
+      "label": "Search Type",
+      "placeholder": "FEELING_LUCKY"
+    },
+    "deleteMode": {
+      "label": "Delete Mode",
+      "placeholder": "soft"
+    },
+    "maxResults": {
+      "label": "Max Results",
+      "placeholder": "6"
+    },
+    "minScore": {
+      "label": "Min Score",
+      "placeholder": "0"
+    },
+    "maxTokens": {
+      "label": "Max Tokens",
+      "placeholder": "512"
+    },
+    "recallInjectionPosition": {
+      "label": "Recall Injection Position",
+      "placeholder": "prependSystemContext"
+    },
+    "autoRecall": {
+      "label": "Auto-Recall"
+    },
+    "autoIndex": {
+      "label": "Auto-Index on Startup"
+    },
+    "autoCognify": {
+      "label": "Auto-Cognify"
+    },
+    "autoMemify": {
+      "label": "Auto-Memify"
+    },
+    "requestTimeoutMs": {
+      "label": "Request Timeout (ms)",
+      "placeholder": "60000"
+    },
+    "ingestionTimeoutMs": {
+      "label": "Ingestion Timeout (ms)",
+      "placeholder": "300000"
+    }
+  }
+}
