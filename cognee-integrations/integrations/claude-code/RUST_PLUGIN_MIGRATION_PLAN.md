@@ -18,19 +18,19 @@ Rust MCP now owns explicit agent actions:
 | explicit sync | MCP `sync_read_model` |
 | forget obsolete memory | MCP `forget` |
 
-Python still owns automatic lifecycle work:
+Rust now owns automatic lifecycle work:
 
-| Hook | Current file | Migration target |
-|---|---|---|
-| SessionStart | `scripts/session-start.py` | `cognee-mcp-rs hook session-start` |
-| UserPromptSubmit lookup | `scripts/session-context-lookup.py` | `cognee-mcp-rs hook context-lookup` |
-| UserPromptSubmit store | `scripts/store-user-prompt.py` | `cognee-mcp-rs hook store-user-prompt` |
-| PostToolUse | `scripts/store-to-session.py` | `cognee-mcp-rs hook store-tool-use` |
-| Stop | `scripts/store-to-session.py --stop` | `cognee-mcp-rs hook store-stop` |
-| PreCompact | `scripts/pre-compact.py` | `cognee-mcp-rs hook pre-compact` |
-| SessionEnd | `scripts/sync-session-to-graph.py` | `cognee-mcp-rs hook session-end` |
-| Idle bridge | `scripts/idle-watcher.py` | `cognee-mcp-rs daemon idle-watcher` |
-| Status line | `scripts/cognee-statusline.sh` | `cognee-mcp-rs status-line` |
+| Hook | Rust command |
+|---|---|
+| SessionStart | `cognee-mcp-rs hook session-start` |
+| UserPromptSubmit lookup | `cognee-mcp-rs hook context-lookup` |
+| UserPromptSubmit store | `cognee-mcp-rs hook store-user-prompt` |
+| PostToolUse | `cognee-mcp-rs hook store-tool-use` |
+| Stop | `cognee-mcp-rs hook store-stop` |
+| PreCompact | `cognee-mcp-rs hook pre-compact` |
+| SessionEnd | `cognee-mcp-rs hook session-end` |
+| Idle bridge | `cognee-mcp-rs daemon idle-watcher` |
+| Status line | `cognee-mcp-rs status-line` |
 
 ## Rust Application Support Needed
 

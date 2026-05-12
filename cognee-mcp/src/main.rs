@@ -2,6 +2,7 @@ mod arguments;
 mod client;
 mod markdown;
 mod mcp;
+mod plugin;
 mod read_model;
 mod settings;
 mod tools;
@@ -10,6 +11,7 @@ mod uploads;
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 use client::CogneeClient;
+use plugin::{DaemonCommand, HookCommand};
 use settings::Settings;
 use std::io::{self, Read};
 
@@ -27,6 +29,15 @@ enum Command {
     Mcp,
     Describe,
     Tool(ToolCommand),
+    Hook {
+        #[command(subcommand)]
+        command: HookCommand,
+    },
+    Daemon {
+        #[command(subcommand)]
+        command: DaemonCommand,
+    },
+    StatusLine,
 }
 
 #[derive(Args)]
@@ -50,6 +61,9 @@ fn run_command(client: &CogneeClient, command: Option<Command>) -> Result<()> {
         Command::Mcp => mcp::run_mcp(client.clone()),
         Command::Describe => print_describe(client),
         Command::Tool(command) => print_tool(client, command),
+        Command::Hook { command } => plugin::run_hook(client, command),
+        Command::Daemon { command } => plugin::run_daemon(client, command),
+        Command::StatusLine => plugin::print_status_line(),
     }
 }
 

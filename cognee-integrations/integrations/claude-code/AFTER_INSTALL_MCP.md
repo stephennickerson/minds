@@ -7,7 +7,7 @@ Run this after pulling and building `cognee-mcp` with `cargo build --release`.
 ```text
 You are updating the Cognee Claude Code integration after the Rust MCP install.
 
-Goal: every explicit agent memory action must use the Rust `cognee-mcp` MCP server. Automatic Claude Code hooks may keep using the existing hook commands until the Rust hook migration lands.
+Goal: every explicit agent memory action and every Claude Code lifecycle hook must use the Rust `cognee-mcp` MCP server/runtime.
 
 Do these edits in `integrations/claude-code`:
 
@@ -27,7 +27,14 @@ Do these edits in `integrations/claude-code`:
    - `skills/cognee-remember/SKILL.md` must call `mcp__cognee-mcp__remember`, then `mcp__cognee-mcp__sync_read_model` when immediate recall visibility is needed
    - `skills/cognee-sync/SKILL.md` must call `mcp__cognee-mcp__sync_read_model`
 
-4. Do not rewrite `hooks/hooks.json` yet unless the Rust binary already exposes hook-compatible commands for every hook event. The hooks are the magic and must only be migrated behind parity tests.
+4. Verify `hooks/hooks.json` uses Rust commands:
+   - `cognee-mcp-rs hook session-start`
+   - `cognee-mcp-rs hook context-lookup`
+   - `cognee-mcp-rs hook store-user-prompt`
+   - `cognee-mcp-rs hook store-tool-use`
+   - `cognee-mcp-rs hook store-stop`
+   - `cognee-mcp-rs hook pre-compact`
+   - `cognee-mcp-rs hook session-end`
 
 5. Validate:
    - `claude plugin validate <absolute path to integrations/claude-code>`
@@ -37,7 +44,7 @@ Do these edits in `integrations/claude-code`:
 
 ## Current Decision
 
-Manual agent actions are Rust MCP now:
+Manual agent actions are Rust MCP:
 
 - recall
 - search
@@ -47,7 +54,7 @@ Manual agent actions are Rust MCP now:
 - sync read model
 - forget
 
-Automatic lifecycle behavior stays in hooks until the Rust plugin migration is complete:
+Automatic lifecycle behavior is Rust hook runtime:
 
 - SessionStart
 - UserPromptSubmit context injection

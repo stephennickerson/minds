@@ -1,6 +1,6 @@
 {
   "name": "cognee-memory",
-  "description": "Cognee knowledge graph memory for Claude Code — session-aware storage, auto-routing recall, and persistent learning across sessions. Supports local mode and Cognee Cloud.",
+  "description": "Cognee knowledge graph memory for Claude Code — Rust MCP recall, session-aware storage, auto-routing hooks, and persistent learning across sessions.",
   "version": "0.2.0",
   "author": {
     "name": "Cognee"

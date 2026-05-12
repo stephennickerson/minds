@@ -2,6 +2,8 @@ use crate::client::CogneeClient;
 use crate::tools;
 use anyhow::Result;
 use serde_json::{Value, json};
+use std::env;
+use std::fs::OpenOptions;
 use std::io::{self, BufRead, BufReader, Read, Write};
 
 const JSONRPC_VERSION: &str = "2.0";
@@ -10,22 +12,38 @@ const INVALID_REQUEST: i64 = -32600;
 const METHOD_NOT_FOUND: i64 = -32601;
 const INVALID_PARAMS: i64 = -32602;
 
+#[derive(Clone, Copy)]
+enum MessageMode {
+    Framed,
+    Line,
+}
+
 pub(crate) fn run_mcp(client: CogneeClient) -> Result<()> {
+    debug_log("start");
     let stdin = io::stdin();
     let mut reader = BufReader::new(stdin.lock());
     let mut stdout = io::stdout();
 
-    while let Some(message) = read_message(&mut reader)? {
+    while let Some((message, mode)) = read_message(&mut reader)? {
+        debug_log(&format!(
+            "read {} {} {}",
+            mode_name(mode),
+            message.len(),
+            debug_excerpt(&message)
+        ));
         let Some(response) = response_for_line(&client, &message) else {
+            debug_log("skip response");
             continue;
         };
-        write_message(&mut stdout, &response)?;
+        debug_log(&format!("write {}", debug_excerpt(&response.to_string())));
+        write_message(&mut stdout, &response, mode)?;
     }
 
+    debug_log("eof");
     Ok(())
 }
 
-fn read_message(reader: &mut BufReader<impl Read>) -> Result<Option<String>> {
+fn read_message(reader: &mut BufReader<impl Read>) -> Result<Option<(String, MessageMode)>> {
     let mut first_line = String::new();
     if reader.read_line(&mut first_line)? == 0 {
         return Ok(None);
@@ -34,9 +52,10 @@ fn read_message(reader: &mut BufReader<impl Read>) -> Result<Option<String>> {
         return read_message(reader);
     }
     if first_line.starts_with("Content-Length:") {
-        return framed_message(reader, &first_line).map(Some);
+        return framed_message(reader, &first_line)
+            .map(|message| Some((message, MessageMode::Framed)));
     }
-    Ok(Some(first_line))
+    Ok(Some((first_line, MessageMode::Line)))
 }
 
 fn framed_message(reader: &mut BufReader<impl Read>, first_line: &str) -> Result<String> {
@@ -68,16 +87,28 @@ fn read_body(reader: &mut BufReader<impl Read>, length: usize) -> Result<String>
     Ok(String::from_utf8(body)?)
 }
 
-fn write_message(stdout: &mut impl Write, response: &Value) -> Result<()> {
+fn write_message(stdout: &mut impl Write, response: &Value, mode: MessageMode) -> Result<()> {
     let body = serde_json::to_vec(response)?;
-    write!(stdout, "Content-Length: {}\r\n\r\n", body.len())?;
+    if matches!(mode, MessageMode::Framed) {
+        write!(stdout, "Content-Length: {}\r\n\r\n", body.len())?;
+    }
     stdout.write_all(&body)?;
+    if matches!(mode, MessageMode::Line) {
+        writeln!(stdout)?;
+    }
     stdout.flush()?;
     Ok(())
 }
 
 fn response_for_line(client: &CogneeClient, line: &str) -> Option<Value> {
     match serde_json::from_str::<Value>(line) {
+        Ok(Value::Array(requests)) => {
+            let responses = requests
+                .into_iter()
+                .filter_map(|request| response_for_request(client, request))
+                .collect::<Vec<_>>();
+            (!responses.is_empty()).then_some(Value::Array(responses))
+        }
         Ok(request) => response_for_request(client, request),
         Err(error) => Some(error_response(
             Value::Null,
@@ -98,7 +129,11 @@ fn response_for_request(client: &CogneeClient, request: Value) -> Option<Value> 
     };
 
     match method {
-        "initialize" => Some(success_response(id, initialize_result())),
+        "initialize" => Some(success_response(
+            id,
+            initialize_result(request.get("params")),
+        )),
+        "ping" => Some(success_response(id, json!({}))),
         "tools/list" => Some(success_response(id, tools_list_result(client))),
         "tools/call" => Some(tools_call_response(client, id, request.get("params"))),
         _ => Some(error_response(
@@ -109,16 +144,22 @@ fn response_for_request(client: &CogneeClient, request: Value) -> Option<Value> 
     }
 }
 
-fn initialize_result() -> Value {
+fn initialize_result(params: Option<&Value>) -> Value {
+    let protocol_version = params
+        .and_then(|value| value.get("protocolVersion"))
+        .and_then(Value::as_str)
+        .unwrap_or("2025-11-25");
     json!({
-        "protocolVersion": "2024-11-05",
+        "protocolVersion": protocol_version,
         "capabilities": {
             "tools": {}
         },
         "serverInfo": {
-            "name": "cognee-rust-mcp",
+            "name": "cognee-mcp",
+            "title": "Cognee Rust MCP",
             "version": env!("CARGO_PKG_VERSION")
-        }
+        },
+        "instructions": "Use Cognee Rust MCP tools for fast memory recall, search, inspection, remember, forget, and read-model sync. Default recall returns ranked evidence without LLM presummary."
     })
 }
 
@@ -211,5 +252,25 @@ fn title_word(word: &str) -> String {
     match chars.next() {
         Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
         None => String::new(),
+    }
+}
+
+fn debug_log(message: &str) {
+    let Some(path) = env::var_os("COGNEE_MCP_DEBUG_FILE") else {
+        return;
+    };
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) {
+        let _ = writeln!(file, "{message}");
+    }
+}
+
+fn debug_excerpt(value: &str) -> String {
+    value.chars().take(1200).collect()
+}
+
+fn mode_name(mode: MessageMode) -> &'static str {
+    match mode {
+        MessageMode::Framed => "framed",
+        MessageMode::Line => "line",
     }
 }

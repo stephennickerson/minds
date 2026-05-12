@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/session-start.py",
+            "command": "cognee-mcp-rs hook session-start",
             "timeout": 15,
             "statusMessage": "Initializing Cognee memory..."
           }
@@ -17,13 +17,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/session-context-lookup.py",
+            "command": "cognee-mcp-rs hook context-lookup",
             "timeout": 15,
-            "statusMessage": "Searching session memory..."
+            "statusMessage": "Searching Cognee memory..."
           },
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/store-user-prompt.py",
+            "command": "cognee-mcp-rs hook store-user-prompt",
             "async": true
           }
         ]
@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/store-to-session.py",
+            "command": "cognee-mcp-rs hook store-tool-use",
             "async": true
           }
         ]
@@ -46,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/store-to-session.py --stop",
+            "command": "cognee-mcp-rs hook store-stop",
             "async": true
           }
         ]
@@ -57,7 +57,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/pre-compact.py",
+            "command": "cognee-mcp-rs hook pre-compact",
             "timeout": 15,
             "statusMessage": "Building memory anchor..."
           }
@@ -69,7 +69,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/sync-session-to-graph.py"
+            "command": "cognee-mcp-rs hook session-end"
           }
         ]
       }

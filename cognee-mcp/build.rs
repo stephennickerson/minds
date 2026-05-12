@@ -164,13 +164,21 @@ fn write_project_mcp_file(manifest: &InstallManifest) -> io::Result<()> {
 fn server_config(manifest: &InstallManifest) -> serde_json::Value {
     json!({
         "type": "stdio",
-        "command": manifest.launcher.display().to_string(),
+        "command": mcp_command(manifest).display().to_string(),
         "args": [],
         "env": {
             "COGNEE_SERVICE_URL": manifest.service_url.clone(),
             "COGNEE_MCP_READ_MODEL_PATH": manifest.read_model.display().to_string()
         }
     })
+}
+
+fn mcp_command(manifest: &InstallManifest) -> &Path {
+    if cfg!(windows) {
+        &manifest.executable
+    } else {
+        &manifest.launcher
+    }
 }
 
 fn configure_codex(manifest: &InstallManifest) -> io::Result<()> {
@@ -251,7 +259,7 @@ fn append_codex_block(mut current: String, manifest: &InstallManifest) -> String
 fn codex_block(manifest: &InstallManifest) -> String {
     format!(
         "{BEGIN_MARKER}\n[mcp_servers.{SERVER_NAME}]\ncommand = {command}\nargs = []\ncwd = {cwd}\nenabled = true\n\n[mcp_servers.{SERVER_NAME}.env]\nCOGNEE_SERVICE_URL = {service}\nCOGNEE_MCP_READ_MODEL_PATH = {read_model}\n{END_MARKER}\n",
-        command = toml_string(manifest.launcher.display()),
+        command = toml_string(mcp_command(manifest).display()),
         cwd = toml_string(manifest.repo.display()),
         service = toml_string(&manifest.service_url),
         read_model = toml_string(manifest.read_model.display()),

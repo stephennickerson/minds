@@ -39,6 +39,24 @@ cognee-mcp-rs tool recall '{ "query": "fleet smoke API", "top_k": 5 }'
 '{ "query": "fleet smoke API", "top_k": 5 }' | cognee-mcp-rs tool recall -
 ```
 
+## Claude Code Hooks
+
+The same Rust binary owns the Claude Code plugin lifecycle:
+
+```powershell
+cognee-mcp-rs hook session-start
+cognee-mcp-rs hook context-lookup
+cognee-mcp-rs hook store-user-prompt
+cognee-mcp-rs hook store-tool-use
+cognee-mcp-rs hook store-stop
+cognee-mcp-rs hook pre-compact
+cognee-mcp-rs hook session-end
+cognee-mcp-rs daemon idle-watcher
+cognee-mcp-rs status-line
+```
+
+Hook state is stored in `~/.cognee-plugin` by default. Set `COGNEE_PLUGIN_STATE_DIR` to use another state directory.
+
 ## Test
 
 ```powershell

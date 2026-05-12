@@ -1,35 +1,26 @@
 # Cognee Memory Plugin for Claude Code
 
-Gives Claude Code persistent memory across sessions using Cognee's knowledge graph. Tool calls and responses are automatically captured into session memory, relevant context is injected on every prompt, and session data is bridged into the permanent knowledge graph at session end.
+Gives Claude Code persistent memory across sessions using Cognee's knowledge graph. Rust hooks capture tool calls and responses into session memory, inject relevant context on every prompt, and bridge session data into the permanent knowledge graph at session end.
 
 ## Install
 
-### 1. Install Cognee
+### 1. Build the Rust MCP
 
 ```bash
-pip install cognee
+cd /path/to/minds/cognee-mcp
+cargo build --release
 ```
+
+The release build installs `cognee-mcp-rs` and registers the `cognee-mcp` MCP server for Claude Code and Codex.
 
 ### 2. Configure
 
-**Local mode** (cognee runs in-process, no server needed):
-
-```bash
-export LLM_API_KEY="your-openai-key"
-export CACHING=true   # required for session memory
-```
-
-**Backend mode** (connect to a local or remote Cognee API server):
+Connect to a local or remote Cognee API server:
 
 ```bash
 export COGNEE_SERVICE_URL="http://localhost:8000"   # or your cloud URL
 export COGNEE_API_KEY="your-api-key"                # optional if auth is disabled
-export CACHING=true
 ```
-
-On first start, the plugin auto-registers as `claude-code@cognee.agent` on the backend — it creates an agent user, logs in, obtains an API key, and reconnects with agent-specific credentials. The agent then appears in the Cognee UI's agents list.
-
-If you already have an agent API key, set `COGNEE_API_KEY` directly and the plugin will use it without re-registering.
 
 **Cognee Cloud**:
 
@@ -72,22 +63,20 @@ claude --plugin-dir /path/to/cognee-integrations/integrations/claude-code
 claude plugin validate /path/to/cognee-integrations/integrations/claude-code
 ```
 
-When the plugin loads, you'll see "Cognee Memory Connected" with the mode, dataset, and session ID at the start of your session.
-
-After building the Rust MCP server, run the post-install wiring checklist in `AFTER_INSTALL_MCP.md`.
+When the plugin loads, you'll see "Cognee Memory Connected" with the dataset and session ID at the start of your session.
 
 ## How it works
 
-The plugin hooks into six Claude Code lifecycle events:
+The plugin hooks into six Claude Code lifecycle events through `cognee-mcp-rs hook ...`:
 
 | Hook | What it does |
 |------|-------------|
-| **SessionStart** | Loads config, computes a per-directory session ID, connects to Cognee Cloud if configured |
-| **UserPromptSubmit** | Searches the session cache for context relevant to your prompt and injects it (3s timeout, fails silently) |
-| **PostToolUse** | Captures tool name, input, and output into the session cache with `[category:agent]` tag (async, non-blocking) |
+| **SessionStart** | Loads config, computes a per-directory session ID, writes Rust state, starts idle watcher |
+| **UserPromptSubmit** | Searches Rust session state and the Rust read model for context relevant to your prompt |
+| **PostToolUse** | Captures tool name, input, and output into Rust session state with `agent_actions` bridge data |
 | **Stop** | Captures the final assistant response when you interrupt |
-| **PreCompact** | Before context window compaction, builds a memory anchor from session + graph context so key knowledge survives the reset |
-| **SessionEnd** | Runs `cognee.improve()` to bridge session data into the permanent knowledge graph |
+| **PreCompact** | Builds a memory anchor from Rust session state and graph context |
+| **SessionEnd** | Bridges session data into Cognee through Rust and refreshes the read model |
 
 ## Data categories
 
@@ -99,7 +88,7 @@ The plugin organizes knowledge into three categories via `node_set` tagging:
 | **project** | `project_docs` | Repository docs, code context, architecture decisions |
 | **agent** | `agent_actions` | Tool call logs, reasoning traces (auto-captured by hooks) |
 
-When using `/cognee-memory:cognee-remember`, Claude routes data to the correct category based on context. When searching with `/cognee-memory:cognee-search`, you can filter by category using `--node-set`.
+When using `/cognee-memory:cognee-remember`, Claude routes data to the correct category through MCP. When searching with `/cognee-memory:cognee-search`, Claude uses the Rust MCP recall/search packet and preserves source handles.
 
 ## Session naming
 
@@ -121,23 +110,23 @@ You can change the strategy via config or env vars:
 
 Three skills are available as slash commands:
 
-- **`/cognee-memory:cognee-remember`** — permanently store data in the knowledge graph (full add + cognify + improve pipeline). Routes to user/project/agent category.
+- **`/cognee-memory:cognee-remember`** — permanently store data in the knowledge graph through the Rust MCP bridge. Routes to user/project/agent category.
 - **`/cognee-memory:cognee-search`** — explicitly search session or graph memory, optionally filtered by category. Automatic search happens on every prompt via hooks.
 - **`/cognee-memory:cognee-sync`** — force-sync session data to the permanent graph without waiting for session end
 
-Explicit skill actions use the Rust `cognee-mcp` MCP server. Lifecycle hooks still use the existing hook commands until the Rust migration in `RUST_PLUGIN_MIGRATION_PLAN.md` is complete.
+Explicit skill actions and lifecycle hooks use the Rust `cognee-mcp` MCP server/runtime.
 
 ## Status line (optional)
 
 Adds a one-line status display at the bottom of your terminal showing cognee mode/dataset/session, recall hit counts from the most recent prompt, and saves accumulated for the current turn.
 
-The script ships in the plugin at `scripts/cognee-statusline.sh`. Claude Code's `statusLine` setting is per-user, so you wire it into `~/.claude/settings.json`:
+Claude Code's `statusLine` setting is per-user, so you wire it into `~/.claude/settings.json`:
 
 ```json
 {
   "statusLine": {
     "type": "command",
-    "command": "/absolute/path/to/cognee-integrations/integrations/claude-code/scripts/cognee-statusline.sh"
+    "command": "cognee-mcp-rs status-line"
   }
 }
 ```
@@ -145,10 +134,10 @@ The script ships in the plugin at `scripts/cognee-statusline.sh`. Claude Code's 
 Example output:
 
 ```
-cognee[local] ds=claude_sessions sess=74f2b7ad530a | 🔍 recall: 5s/5t/1g | saving: 1p/0t/1a
+cognee[rust] ds=claude_sessions sess=74f2b7ad530a | recall: 5s/5t/1g | saving: 1p/0t/1a
 ```
 
-The script reads three small JSON state files written by the plugin:
+The Rust status command reads three small JSON state files written by the plugin:
 
 | File | Source | Surfaces |
 |---|---|---|
@@ -175,8 +164,6 @@ tail -n 1 ~/.cognee-plugin/recall-audit.log | jq -r .context
 | `session_prefix` | `COGNEE_SESSION_PREFIX` | `cc` | Prefix for session IDs |
 | `service_url` | `COGNEE_SERVICE_URL` | -- | Cognee Cloud URL |
 | `api_key` | `COGNEE_API_KEY` | -- | Cognee Cloud API key |
-| `llm_api_key` | `LLM_API_KEY` | -- | LLM provider key (local mode) |
-| `llm_model` | `LLM_MODEL` | -- | LLM model name (local mode) |
 | `top_k` | -- | `5` | Results returned by automatic session search (per scope) |
 
 Config is resolved in order: env vars > `~/.cognee-plugin/config.json` > defaults.

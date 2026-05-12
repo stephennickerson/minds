@@ -571,6 +571,55 @@ fn contract_tool_arguments(tool_name: &str) -> Value {
 }
 
 #[test]
+fn mcp_accepts_claude_code_line_json_protocol() {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_cognee-mcp-rs"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("compiled MCP binary should launch");
+
+    let mut input = child.stdin.take().expect("MCP stdin should be available");
+    let output = child.stdout.take().expect("MCP stdout should be available");
+    let mut reader = BufReader::new(output);
+    let request = json!({
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2025-11-25",
+            "capabilities": {},
+            "clientInfo": {
+                "name": "claude-code",
+                "version": "contract-test"
+            }
+        },
+        "jsonrpc": "2.0",
+        "id": 0
+    });
+
+    writeln!(input, "{request}").expect("line JSON request should write");
+    input.flush().expect("MCP stdin should flush");
+
+    let mut response_line = String::new();
+    reader
+        .read_line(&mut response_line)
+        .expect("line JSON response should read");
+    let response: Value =
+        serde_json::from_str(&response_line).expect("line response should be JSON");
+    assert_eq!(
+        response.pointer("/result/protocolVersion"),
+        Some(&json!("2025-11-25"))
+    );
+    assert_eq!(
+        response.pointer("/result/serverInfo/name"),
+        Some(&json!("cognee-mcp"))
+    );
+
+    drop(input);
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+#[test]
 fn default_tool_surface_exposes_only_agent_tools() {
     let mut process = McpProcess::start();
     process.initialize();
